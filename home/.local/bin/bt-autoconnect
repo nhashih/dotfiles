@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+
+import os
+import time
+import tomllib
+import dbus
+import dbus.mainloop.glib
+
+from gi.repository import GLib
+
+
+CONFIG = os.path.expanduser(
+    "~/.config/bt-autoconnect/config.toml"
+)
+
+INTERVAL = 60
+
+
+BLUEZ = "org.bluez"
+DEVICE_IFACE = "org.bluez.Device1"
+device_state = {}
+
+
+def load_config():
+    with open(CONFIG, "rb") as f:
+        return tomllib.load(f)
+
+
+def get_device_path(bus, address):
+    manager = dbus.Interface(
+        bus.get_object(
+            "org.bluez",
+            "/"
+        ),
+        "org.freedesktop.DBus.ObjectManager"
+    )
+
+    objects = manager.GetManagedObjects()
+
+    target = address.replace(":", "_")
+
+    for path, interfaces in objects.items():
+        if path.endswith(target):
+            if DEVICE_IFACE in interfaces:
+                return path
+
+    return None
+
+
+def connect_profile(bus, path, uuid):
+    device = dbus.Interface(
+        bus.get_object(
+            BLUEZ,
+            path
+        ),
+        DEVICE_IFACE
+    )
+
+    device.ConnectProfile(uuid)
+
+
+def process_device(bus, device):
+    path = get_device_path(
+        bus,
+        device["address"]
+    )
+
+    if path is None:
+        print(
+            "device not found:",
+            device["address"],
+            flush=True
+        )
+        return
+
+    props = dbus.Interface(
+        bus.get_object(
+            BLUEZ,
+            path
+        ),
+        "org.freedesktop.DBus.Properties"
+    )
+
+    connected = props.Get(
+        DEVICE_IFACE,
+        "Connected"
+    )
+
+    if connected:
+        return
+
+    for uuid in device["services"]:
+        try:
+            print(
+                "connecting:",
+                device["address"],
+                uuid,
+                flush=True
+            )
+
+            connect_profile(
+                bus,
+                path,
+                uuid
+            )
+
+        except Exception as e:
+            print(
+                "connect failed:",
+                e,
+                flush=True
+            )
+
+def on_properties_changed(interface, changed, invalidated, path=None):
+    if interface != "org.bluez.Device1":
+        return
+
+    if "Connected" not in changed:
+        return
+
+    connected = bool(changed["Connected"])
+
+    print(
+        "connection changed:",
+        path,
+        connected,
+        flush=True)
+
+    if path not in device_state:
+        device_state[path] = {
+            "connected": connected,
+            "cooldown_until": 0
+        }
+        return
+
+    previous = device_state[path]["connected"]
+
+    device_state[path]["connected"] = connected
+
+    if previous and not connected:
+        print(
+            "device disconnected",
+            path,
+            flush=True
+        )
+
+def main():
+    print(
+        "bt-autoconnect running",
+        flush=True
+    )
+
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+
+    bus = dbus.SystemBus()
+
+    bus.add_signal_receiver(
+        on_properties_changed,
+        signal_name="PropertiesChanged",
+        dbus_interface="org.freedesktop.DBus.Properties",
+        path_keyword="path"
+    )
+
+    def check_devices():
+        try:
+            config = load_config()
+
+            for device in config["device"]:
+                process_device(
+                    bus,
+                    device
+                )
+
+        except Exception as e:
+            print(
+                "error:",
+                e,
+                flush=True
+            )
+
+        return True
+
+    GLib.timeout_add_seconds(
+        INTERVAL,
+        check_devices
+    )
+
+    check_devices()
+
+    loop = GLib.MainLoop()
+    loop.run()
+
+if __name__ == "__main__":
+    main()
