@@ -1,0 +1,288 @@
+#!/usr/bin/env python3
+
+import os
+import dbus
+import dbus.mainloop.glib
+import tomllib
+import pwd
+
+from gi.repository import GLib
+
+
+CONFIG = "/etc/batt-suspend/config.toml"
+
+UPower = "org.freedesktop.UPower"
+DEVICE_IFACE = "org.freedesktop.UPower.Device"
+DISPLAY_DEVICE = "/org/freedesktop/UPower/devices/DisplayDevice"
+
+LOGIN1 = "org.freedesktop.login1"
+LOGIN1_PATH = "/org/freedesktop/login1"
+LOGIN1_IFACE = "org.freedesktop.login1.Manager"
+
+NOTIFICATION_IFACE = "org.freedesktop.Notifications"
+NOTIFICATION_PATH = "/org/freedesktop/Notifications"
+
+STATE_UNKNOWN = 0
+STATE_CHARGING = 1
+STATE_DISCHARGING = 2
+STATE_EMPTY = 3
+STATE_FULLY_CHARGED = 4
+STATE_PENDING_CHARGE = 5
+STATE_PENDING_DISCHARGE = 6
+
+
+bus = None
+
+triggered_levels = set()
+suspend_triggered = False
+
+def load_config():
+    with open(CONFIG, "rb") as f:
+        return tomllib.load(f)
+
+
+config = load_config()
+
+WARNING_LEVELS = set(
+    config["warning_levels"]
+)
+CRITICAL_LEVEL = config["critical_level"]
+NOTIFICATION_ENABLED = config["notification"]
+
+
+
+def read_battery():
+    obj = bus.get_object(
+        UPower,
+        DISPLAY_DEVICE
+    )
+
+    props = dbus.Interface(
+        obj,
+        "org.freedesktop.DBus.Properties"
+    )
+
+    values = props.GetAll(
+        DEVICE_IFACE
+    )
+
+    return (
+        float(values["Percentage"]),
+        int(values["State"])
+    )
+
+
+def suspend():
+    global suspend_triggered
+
+    if suspend_triggered:
+        return
+
+    suspend_triggered = True
+
+    manager = dbus.Interface(
+        bus.get_object(
+            LOGIN1,
+            LOGIN1_PATH
+        ),
+        LOGIN1_IFACE
+    )
+
+    print(
+        "SUSPENDING SYSTEM",
+        flush=True
+    )
+
+    manager.Suspend(False)
+
+def get_active_user():
+    system_bus = dbus.SystemBus()
+
+    manager = dbus.Interface(
+        system_bus.get_object(
+            LOGIN1,
+            LOGIN1_PATH
+        ),
+        LOGIN1_IFACE
+    )
+
+    sessions = manager.ListSessions()
+
+    for session in sessions:
+        session_id = session[0]
+        uid = session[1]
+        username = session[2]
+
+        path = f"/org/freedesktop/login1/session/{session_id}"
+        props = dbus.Interface(
+            system_bus.get_object(
+                LOGIN1,
+                path
+            ),
+            "org.freedesktop.DBus.Properties"
+        )
+        active = props.Get(
+            "org.freedesktop.login1.Session",
+            "Active"
+        )
+        if active:
+            return username
+
+    return None
+
+def get_user_bus(username):
+    import pwd
+    uid = pwd.getpwnam(username).pw_uid
+    return (
+        f"unix:path=/run/user/{uid}/bus"
+    )
+
+def get_session_address():
+    session_id = get_active_session_bus()
+    if session_id is none:
+        return none
+    system_bus = dbus.systembus()
+    props = dbus.interface(
+        system_bus.get_object(
+            login1,
+            f"/org/freedesktop/login1/session/{session_id}"
+        ),
+        "org.freedesktop.DBus.Properties"
+    )
+    return props.Get(
+        "org.freedesktop.login1.Session",
+        "Service"
+    )
+
+
+def notify(title, message):
+    if not NOTIFICATION_ENABLED:
+        return
+    try:
+        uid = get_active_user()
+        if uid is None:
+            print(
+                "no active user",
+                flush=True
+            )
+            return
+
+        session_bus = dbus.bus.BusConnection(
+            get_user_bus(uid)
+        )
+
+        notifications = dbus.Interface(
+            session_bus.get_object(
+                NOTIFICATION_IFACE,
+                NOTIFICATION_PATH
+            ),
+            NOTIFICATION_IFACE
+        )
+
+        notifications.Notify(
+            "batt-suspend",
+            dbus.UInt32(0),
+            "",
+            title,
+            message,
+            dbus.Array([], signature="s"),
+            dbus.Dictionary({}, signature="sv"),
+            dbus.Int32(5000)
+        )
+
+    except Exception as e:
+        print(
+            "notification failed:",
+            e,
+            flush=True
+        )
+
+
+def process_battery(
+    percentage: float,
+    state: int
+):
+    print(
+        f"battery: {percentage}% state={state}",
+        flush=True
+    )
+
+    if state in {
+        STATE_CHARGING,
+        STATE_FULLY_CHARGED,
+        STATE_PENDING_CHARGE,
+    }:
+
+        if triggered_levels:
+            print(
+                "charging detected, reset state",
+                flush=True
+            )
+        triggered_levels.clear()
+        return
+
+    if state != STATE_DISCHARGING:
+        return
+
+    for level in sorted(
+        WARNING_LEVELS,
+        reverse=True
+    ):
+        if percentage <= level and level not in triggered_levels:
+            triggered_levels.add(level)
+            print(
+                f"NOTIFY: Battery reached {level}%",
+                flush=True
+            )
+            notify(
+                "Battery Warning",
+                f"Battery reached {level}%"
+            )
+
+    if percentage <= CRITICAL_LEVEL:
+        suspend()
+
+def on_properties_changed(
+    interface,
+    changed,
+    invalidated
+):
+    if interface != DEVICE_IFACE:
+        return
+    percentage, state = read_battery()
+    process_battery(
+        percentage,
+        state
+    )
+
+def main():
+    global bus
+
+    print(
+        "batt-suspend running",
+        flush=True
+    )
+
+    dbus.mainloop.glib.DBusGMainLoop(
+        set_as_default=True
+    )
+    bus = dbus.SystemBus()
+    percentage, state = read_battery()
+    process_battery(
+        percentage,
+        state
+    )
+
+    bus.add_signal_receiver(
+        on_properties_changed,
+        signal_name="PropertiesChanged",
+        dbus_interface="org.freedesktop.DBus.Properties",
+        path=DISPLAY_DEVICE
+    )
+
+    loop = GLib.MainLoop()
+    loop.run()
+
+
+if __name__ == "__main__":
+    main()

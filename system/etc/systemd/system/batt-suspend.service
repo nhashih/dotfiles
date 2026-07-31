@@ -1,0 +1,13 @@
+[Unit]
+Description=Battery Suspend Daemon
+After=dbus.service
+Wants=dbus.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/batt-suspend
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

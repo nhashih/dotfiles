@@ -1,0 +1,5 @@
+warning_levels = [25, 20]
+critical_level = 15
+
+notification = true
+suspend = true
