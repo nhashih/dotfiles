@@ -1,0 +1,9 @@
+[opener]
+nvim  = [
+  { run = 'nvim "$@"', block = true, desc = "Neovim" }
+]
+
+[open]
+append_rules = [
+  { url = "*", use = "nvim" }
+]
