@@ -1,0 +1,42 @@
+# Default Apps
+
+# Window Manager Application
+set $defaultStatusBar quickshell -c bar
+set $defaultAppLauncher fuzzel
+set $defaultQuickSettingsquickshell -c quicksetting
+set $defaultNotification dunst
+set $defaultLockscreen swaylock
+set $defaultIdleManager swayidle -w \
+    timeout 30 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+    timeout 45 'swaylock -f -c 000000' \
+    before-sleep 'swaylock -f -c 000000'
+set $defaultDisplayControl ""
+set $defaultDisplaySettings ""
+set $defaultAudioControl ""
+set $defaultAudioSettings ""
+set $defaultPowerMenu ""
+set $defaultWallpaperManager swaybg
+set $defaultAuthAgent systemctl --user start hyprpolkitagent.service
+set $defaultScreenshot grim 
+set $defaultScreenRecorder wf-recorder
+set $defaultNetworkManager quickshell -c wifi
+set $defaultBluetoothManager quickshell -c bluetoooth
+set $defaultMediaPlayer vlc
+set $defaultPhotoViewer quickshell -c photo
+set $defaultDbusActivation dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+set $defaultCredentialManager gnome-keyring-daemon --start --components=secrets
+set $defaulteIdleInhibitor wayland-pipewire-idle-inhibit
+
+
+# User Application
+set $defaultTerminal kitty
+set $defaultFileManager dolphin
+set $defaultBrowser brave 
+
+# Input
+set $mod Mod4
+set $left h
+set $down j
+set $up k
+set $right l
+

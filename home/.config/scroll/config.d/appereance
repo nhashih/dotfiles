@@ -1,0 +1,23 @@
+# cubic-bezier(0.25, 1, 0.5, 1)
+
+bar {
+    position top
+
+    # When the status_command prints a new line to stdout, scrollbar updates.
+    # The default just shows the current date and time.
+    status_command while date +'%Y-%m-%d %X'; do sleep 1; done
+
+    colors {
+        statusline #ffffff
+        background #323232
+        inactive_workspace #32323200 #32323200 #5c5c5c
+        scroller #2F343AFF #055E20FF #FFFFFFFF
+    }
+}
+
+default_border pixel 2
+gaps inner 4
+gaps outer 20
+client.focused #15439e #4b4b4b #e0e0e0 #2e9ef4 #15439e
+client.focused_inactive #595959 #3b3b3b #e0e0e0 #2e9ef4 #595959
+client.unfocused #595959 #1b1b1b #e0e0e0 #2e9ef4 #595959
