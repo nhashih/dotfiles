@@ -1,0 +1,118 @@
+{
+  "margin": "2px 4px 0px 4px",
+  "opacity": "0",
+  "layer": "top",
+  "position": "top",
+  "height": 34,
+  "modules-left": ["group/left-pill"],
+  "modules-center": ["hyprland/workspaces"],
+"modules-right": ["group/tray-drawer", "group/volume-pill", "group/network-pill", "group/right-pill"],
+
+  "group/tray-drawer": {
+    "orientation": "horizontal",
+    "drawer": {
+      "transition-duration": 500,
+      "children-class": "tray-child",
+      "transition-left-to-right": false
+    },
+    "modules": [
+      "custom/tray-icon", 
+      "tray"              
+    ]
+  },
+
+  "custom/tray-icon": {
+    "format": "", 
+    "tooltip": false
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 8
+  },
+
+  "group/left-pill": {
+    "orientation": "horizontal",
+    "modules": ["custom/os", "hyprland/window"]
+  },
+
+  "group/volume-pill": {
+    "orientation": "horizontal",
+    "modules": ["pulseaudio"]
+  },
+
+  "group/network-pill": {
+    "orientation": "horizontal",
+    "modules": ["bluetooth", "network"]
+  },
+
+  "group/right-pill": {
+    "orientation": "horizontal",
+    "modules": ["battery", "clock"]
+  },
+
+  "tray": {
+    "icon-size": 16,
+    "spacing": 10
+  },
+
+  "pulseaudio": {
+    "format": "{icon} {volume}%",
+    "format-muted": "󰝟",
+    "format-icons": {
+      "default": ["󰕿", "󰖀", "󰕾"]
+    },
+    "on-click": "pavucontrol"
+  },
+
+  "network": {
+    "format-wifi": "{icon}",
+    "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"], 
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰤮",
+    "format-disabled": "󰖪",
+    "tooltip-format-wifi": "{essid} {signalStrength}%",
+    "on-click": "kitty fish -c nmtui"
+  },
+
+  "bluetooth": {
+    "format": "",
+    "format-disabled": "󰂲", 
+    "format-connected": "",
+    "format-connected-battery": "",
+    "tooltip-format": "{controller_alias}\t{controller_address}",
+    "tooltip-format-connected": "{controller_alias}\n\n{device_enumerate}",
+    "tooltip-format-enumerate-connected-battery": "{device_alias}\t{device_battery_percentage}%",
+    "on-click": "kitty fish -c bluetoothctl"
+  },
+
+  "battery": {
+    "interval": 1,
+    "states": {
+      "warning": 30,
+      "critical": 15
+    },
+    "format": "{icon}",
+    "format-charging": "{icon} 󱐋",
+    "format-plugged": "{icon} ",
+    "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁽", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+    "tooltip-format": "{capacity}%"
+  },
+
+  "clock": {
+    "format": "{:%H:%M}"
+  },
+
+  "custom/os": { "format": "" },
+  "hyprland/window": {
+    "format": "{class}",
+    "max-length": 20,
+    "rewrite": {
+        "^$": "Desktop", 
+        "kitty": "Terminal",
+        "brave-default": "Browser",
+        "com.ayugram.desktop": "Telegram"
+    }
+  },
+  "hyprland/workspaces": { "format": "{name}" }
+}

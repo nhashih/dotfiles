@@ -1,0 +1,124 @@
+* {
+    font-family: "JetBrainsMono Nerd Font Mono";
+    font-size: 13px;
+    border-radius: 16px;
+    font-weight: 600;
+}
+
+.modules-left > widget > box,
+.modules-right > widget > box,
+#workspaces {
+    background-color: rgba(255, 255, 255, 1); 
+    margin: 4px 5px;
+    padding: 0px 0px;
+    border-radius: 16px;
+    
+    box-shadow: inset 1px 1px 0px 0px rgba(255, 255, 255, 0.08), 
+                inset -1px -1px 0px 0px rgba(0, 0, 0, 0.08);
+                
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+window#waybar {
+    background-color: rgba(0, 0, 0, 0); 
+    color: #CDD6F4;
+}
+
+
+#custom-tray-icon {
+    color: #CDD6F4;
+    padding: 0 4px 0 10px;
+}
+
+.tray-child {
+    margin-right: 5px;
+}
+
+.modules-left > widget > box,
+.modules-right > widget > box,
+#workspaces {
+    background-color: rgba(255, 255, 255, 0.06);
+    margin: 4px 5px;
+    padding: 0px 10px;
+    border-radius: 16px;
+}
+
+#custom-os, #window, #battery, #clock, #pulseaudio, #network, #bluetooth {
+    background: transparent;
+    padding: 2px 6px;
+    margin: 0px;
+}
+
+#workspaces button {
+    padding: 0px 8px;
+    color: #CDD6F4;
+    background: transparent;
+}
+
+#workspaces button.active {
+    color: #FFFFFF;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+#custom-os { font-size: 15px; }
+#window { font-weight: 700; }
+#clock { font-weight: 700; }
+
+/* Reset warna modul lain ke default (CDD6F4) */
+#pulseaudio, 
+#bluetooth, 
+#network { 
+    color: #CDD6F4; 
+}
+
+#network { 
+    font-size: 20px; 
+}
+
+
+#bluetooth { 
+    color: #CDD6F4; 
+    padding: 0 6px;
+}
+
+#bluetooth.connected-battery {
+    font-weight: 700;
+}
+
+#bluetooth > span {
+    font-family: "JetBrainsMono Nerd Font"; 
+}
+
+#battery {
+    font-size: 12px; 
+}
+
+#battery.charging, 
+#battery.plugged { 
+    color: #A6E3A1; 
+}
+
+#battery.critical:not(.charging) {
+    color: #F38BA8;
+    animation-name: blink;
+    animation-duration: 0.5s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+@keyframes blink {
+    to {
+        color: #CDD6F4;
+    }
+}
+
+#custom-tray-icon {
+    color: #CDD6F4;
+}
+
+.tray-child {
+  /* background-color: rgba(255, 255, 255, 0.06); */
+  margin: 10px;
+}
+
