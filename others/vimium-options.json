@@ -1,0 +1,5 @@
+{
+  "grabBackFocus": true,
+  "keyMappings": "# Using Nash Universal Keybinds Standard v0.0.1\nunmapAll\n\nmap j scrollDown\nmap k scrollUp\nmap gg scrollToTop\nmap G scrollToBottom\nmap w scrollPageDown\nmap b scrollPageUp\n\nmap H previousTab\nmap L nextTab\n\nmap <c-<> moveTabLeft\nmap <c->> moveTabRight\n\n\nmap K goBack\nmap J goForward\n\nmap tq removeTab\nmap tu restoreTab\nmap tt createTab\nmap td duplicateTab\n\nmap tp togglePinTab\nmap tm toggleMuteTab\n\n\n\nmap ? showHelp\n\nmap i enterInsertMode\nmap v enterVisualMode\nmap gi focusInput\nmap f LinkHints.activateMode\nmap F LinkHints.activateModeToOpenInNewTab\nmap - LinkHints.activateModeToOpenInNewForegroundTab",
+  "settingsVersion": "2.4.2"
+}
