@@ -1,0 +1,96 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "dns": {
+    "strategy": "ipv4_only",
+    "servers": [
+      {
+        "type": "tls",
+        "tag": "dns-remote",
+        "server": "8.8.8.8",
+        "server_port": 853,
+        "tls": {
+          "enabled": true,
+          "server_name": "dns.google"
+        },
+        "detour": "proxy"
+      }
+    ],
+    "final": "dns-remote"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "nekobox-tun",
+      "address": [
+        "172.18.0.1/30",
+        "fdfe:dcba:9876::1/126"
+      ],
+      "mtu": 1500,
+      "auto_route": true,
+      "auto_redirect": true,
+      "route_exclude_address": [
+        "10.0.0.0/8",
+        "127.0.0.0/8",
+        "141.11.160.12/32",
+        "169.254.0.0/16",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "224.0.0.0/4",
+        "255.255.255.255/32",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+        "ff00::/8"
+      ]
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vmess",
+      "tag": "proxy",
+      "server": "141.11.xxx.xx",
+      "server_port": 80,
+      "uuid": "2792e38c-4ae7-434e-aa8a-xxxxxxx",
+      "security": "auto",
+      "alter_id": 0,
+      "global_padding": true,
+      "authenticated_length": false,
+      "bind_interface": "wlan0",
+      "transport": {
+        "type": "ws",
+        "path": "/vmess",
+        "headers": {
+          "Host": "xxx.xx.xx"
+        }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "proxy",
+    "rules": [
+      {
+        "action": "sniff"
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": "dns"
+      },
+      {
+        "ip_version": 6,
+        "action": "reject"
+      }
+    ]
+  }
+}
