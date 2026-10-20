@@ -1,97 +1,120 @@
-# Bluetooth Auto Connect
-## Overview
+# bt-autoconnect
 
-A lightweight user daemon that automatically reconnects configured Bluetooth services using BlueZ D-Bus API.
-This exists because BlueZ trusted devices do not automatically reconnect after system startup.
+## What?
 
-Blueman solves this problem through its AutoConnect plugin. This implementation provides similar functionality without requiring Blueman (Bluetooth Manager).
+A user-level daemon that automatically reconnects configured Bluetooth profiles through the BlueZ D-Bus API.
 
-## Motivation
+## Why?
 
-On Arch Linux, my Bluetooth headset does not reconnect automatically after login/suspend/sleep, even the device state is:
+BlueZ does not automatically reconnect a device simply because it is paired and trusted. This daemon reproduces the periodic reconnection behavior of Blueman's AutoConnect plugin without requiring Blueman to run.
 
-```text
-Paired    = true
-Trusted   = true
-Connected = false
-````
+- Uses BlueZ D-Bus directly instead of invoking `bluetoothctl`.
+- Checks device connection state every 60 seconds.
+- Connects explicitly configured profiles through `ConnectProfile()`.
 
-I assumed `Trusted` meant BlueZ would reconnect the device automatically. After tracing the behavior, it turned out that this assumption was incorrect.
-BlueZ only stores device state and permissions. It does not initiate reconnection by itself.
+## How?
 
-## Existing Solution
+### File map
 
-Blueman already solves this problem through its AutoConnect plugin.
-Instead of keeping the entire Blueman applet running, I wanted a minimal implementation that only performs the auto-connect logic.
-The goal is to reproduce Blueman's behavior using only the BlueZ D-Bus API.
+| Repository path | Installed path |
+|---|---|
+| `home/.local/bin/bt-autoconnect` | `~/.local/bin/bt-autoconnect` |
+| `home/.config/bt-autoconnect/config.toml` | `~/.config/bt-autoconnect/config.toml` |
+| `home/.config/systemd/user/bt-autoconnect.service` | `~/.config/systemd/user/bt-autoconnect.service` |
 
-## How Blueman Works
-
-After reading Blueman's source code, the auto-connect plugin is surprisingly simple.
-
-Every configured interval:
-1. iterate configured devices
-2. check `Device1.Connected`
-3. if disconnected, call `ConnectProfile()`
-
-There is no special handling for:
-* trusted devices
-* boot events
-* manual disconnect
-* Bluetooth power events
-
-The daemon simply retries periodically.
-This implementation intentionally follows the same design.
-
-## Files
-
-```text
-home/
-├── .local/
-│   └── bin/
-│       └── bt-autoconnect
-└── .config/
-    └── systemd/
-        └── user/
-            └── bt-autoconnect.service
-```
-
-`bt-autoconnect`
-* python-based binary
-* loads configuration
-* resolves BlueZ object paths
-* checks connection state
-* connects configured profiles
-
-`bt-autoconnect.service`
-Starts the daemon automatically in the user session.
-
-## Connection Flow
+### Runtime flow
 
 ```mermaid
 flowchart TD
     A["systemd --user"] --> B["bt-autoconnect"]
-    B --> C["GetManagedObjects()"]
-    C --> D{"Device1.Connected?"}
-    D -- Yes --> E["Skip"]
-    D -- No --> F["ConnectProfile()"]
+    B --> C["Load config.toml"]
+    C --> D["Resolve device object path"]
+    D --> E{"Device1.Connected"}
+    E -- true --> F["Skip device"]
+    E -- false --> G["ConnectProfile(uuid)"]
+    F --> H["Wait 60 seconds"]
+    G --> H
+    H --> C
 ```
 
-## Why ConnectProfile()
+The daemon runs an initial check at startup, then repeats every 60 seconds through GLib. D-Bus `PropertiesChanged` signals update connection-state tracking but do not initiate reconnection.
 
-Audio headsets usually expose multiple Bluetooth profiles.
-Instead of calling the generic `Connect()` method, the daemon connects the required profile explicitly.
+### Main functions
 
-Example:
-```text
-0000110b-0000-1000-8000-00805f9b34fb
+| Function | Responsibility |
+|---|---|
+| `load_config()` | Reads `~/.config/bt-autoconnect/config.toml`. |
+| `get_device_path()` | Resolves a device MAC address to its BlueZ object path. |
+| `connect_profile()` | Calls `Device1.ConnectProfile()` for a configured UUID. |
+| `process_device()` | Checks connection state and attempts configured profiles when disconnected. |
+| `on_properties_changed()` | Tracks `Connected` property changes and logs disconnections. |
+| `main()` | Initializes D-Bus, registers signal handling, schedules checks, and runs the GLib loop. |
+
+### Configuration
+
+`~/.config/bt-autoconnect/config.toml`
+
+```toml
+[[device]]
+address = "41:42:3D:xx:xx:xx"
+
+services = [
+    "0000110b-0000-1000-8000-00805f9bxxxx"
+]
 ```
-Audio Sink (A2DP)
 
-## Design Decisions
+Each `[[device]]` entry specifies a Bluetooth MAC address and the profile UUIDs to connect. The example UUID represents the Audio Sink (A2DP) profile.
 
-This code intentionally:
-* does not depend on Blueman
-* does not execute `bluetoothctl`
-* communicates directly with BlueZ through D-Bus
-* follows Blueman's polling approach instead of implementing custom reconnect logic
+### Dependencies
+
+**Required packages**
+
+| Package | Purpose |
+|---|---|
+| `python` | Runtime and `tomllib` |
+| `python-dbus` | BlueZ D-Bus communication |
+| `python-gobject` | GLib main loop and timer |
+| `bluez` | Bluetooth service |
+
+```bash
+sudo pacman -S --needed python python-dbus python-gobject bluez
+```
+
+### Service lifecycle
+
+```bash
+systemctl --user enable --now bt-autoconnect.service
+systemctl --user status bt-autoconnect.service
+journalctl --user -u bt-autoconnect.service
+systemctl --user restart bt-autoconnect.service
+```
+
+### Related components
+
+| Component | Responsibility |
+|---|---|
+| BlueZ | Bluetooth device management and profile connections |
+| D-Bus | Communication with BlueZ |
+| GLib | Event loop and periodic scheduling |
+| systemd user manager | Daemon lifecycle and restart policy |
+| Blueman AutoConnect | Existing implementation whose polling behavior this daemon follows |
+
+### Remove
+
+```bash
+systemctl --user disable --now bt-autoconnect.service
+rm -f ~/.config/systemd/user/bt-autoconnect.service
+rm -f ~/.local/bin/bt-autoconnect
+rm -rf ~/.config/bt-autoconnect
+systemctl --user daemon-reload
+systemctl --user reset-failed
+```
+
+### Implementation limitations
+
+- No explicit configuration schema or value validation.
+- No retry backoff; failed connections are retried every 60 seconds.
+- No reconnect action is triggered directly by disconnection or Bluetooth power-state signals.
+- No per-profile connection-state checks.
+- Device resolution depends on matching the transformed MAC address against the BlueZ object-path suffix.
+- `time` is imported but unused.
