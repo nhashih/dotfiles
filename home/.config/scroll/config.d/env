@@ -3,12 +3,12 @@
 # Window Manager Application
 set $defaultStatusBar quickshell -c bar
 set $defaultAppLauncher fuzzel
-set $defaultQuickSettingsquickshell -c quicksetting
+set $defaultQuickSettings quickshell -c quicksetting
 set $defaultNotification dunst
 set $defaultLockscreen swaylock
 set $defaultIdleManager swayidle -w \
-    timeout 30 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
-    timeout 45 'swaylock -f -c 000000' \
+    timeout 60 'scrollmsg "output * power off"' resume 'scrollmsg "output * power on"' \
+    timeout 120 'swaylock -f -c 000000' \
     before-sleep 'swaylock -f -c 000000'
 set $defaultDisplayControl ""
 set $defaultDisplaySettings ""
@@ -26,7 +26,7 @@ set $defaultPhotoViewer quickshell -c photo
 set $defaultDbusActivation dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 set $defaultCredentialManager gnome-keyring-daemon --start --components=secrets
 set $defaulteIdleInhibitor wayland-pipewire-idle-inhibit
-
+set $defaultColorTemperaturManager wlsunset -l -6.20 -long 106.81 -t 2500 -T 4000
 
 # User Application
 set $defaultTerminal kitty

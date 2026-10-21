@@ -7,5 +7,6 @@ input "type:touchpad" {
     tap_button_map lrm
     natural_scroll true
     scroll_factor 0.5
+    pointer_accel 0.4
 }
 
