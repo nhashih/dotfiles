@@ -1,19 +1,62 @@
-#!/bin/sh
+#!/usr/bin/bash
 
 IFACE="${1:-}"
 ACTION="${2:-}"
 
-[ "$IFACE" = "wlan0" ] || exit 0
-
-case "$ACTION" in
-up | dhcp4-change | dhcp6-change | reapply)
-  ;;
-*)
-  exit 0
-  ;;
+case "$IFACE" in
+wlan0 | tailscale0 | nekobox-tun | "") ;;
+*) exit 0 ;;
 esac
 
-/usr/bin/resolvectl dns "$IFACE" 1.1.1.1 1.0.0.1
-/usr/bin/resolvectl domain "$IFACE" '~.'
-/usr/bin/resolvectl dnsovertls "$IFACE" no
-/usr/bin/resolvectl flush-caches
+case "$ACTION" in
+up | down | pre-up | pre-down | vpn-up | vpn-down | \
+  connectivity-change | dns-change | reapply | dhcp4-change | dhcp6-change) ;;
+*) exit 0 ;;
+esac
+
+sleep 1
+
+link_exists() {
+  /usr/bin/ip link show dev "$1" >/dev/null 2>&1
+}
+
+link_up() {
+  /usr/bin/ip -o link show dev "$1" 2>/dev/null |
+    /usr/bin/grep -qE '<[^>]*,UP([,>])'
+}
+
+if link_exists tailscale0 && link_up tailscale0; then
+  /usr/bin/resolvectl domain tailscale0 \
+    tail8caf8f.ts.net || true
+  /usr/bin/resolvectl default-route tailscale0 no || true
+fi
+
+if link_exists nekobox-tun && link_up nekobox-tun; then
+  /usr/bin/resolvectl dns nekobox-tun 172.18.0.2 || true
+  /usr/bin/resolvectl dnsovertls nekobox-tun no || true
+  /usr/bin/resolvectl domain nekobox-tun '~.' || true
+  /usr/bin/resolvectl default-route nekobox-tun yes || true
+
+  if link_exists wlan0; then
+    /usr/bin/resolvectl dns wlan0 1.1.1.1 1.0.0.1 || true
+    /usr/bin/resolvectl domain wlan0 '' || true
+    /usr/bin/resolvectl default-route wlan0 no || true
+  fi
+
+else
+  if link_exists nekobox-tun; then
+    /usr/bin/resolvectl dns nekobox-tun '' || true
+    /usr/bin/resolvectl domain nekobox-tun '' || true
+    /usr/bin/resolvectl default-route nekobox-tun no || true
+    /usr/bin/resolvectl dnsovertls nekobox-tun no || true
+  fi
+
+  if link_exists wlan0 && link_up wlan0; then
+    /usr/bin/resolvectl dns wlan0 1.1.1.1 1.0.0.1 || true
+    /usr/bin/resolvectl dnsovertls wlan0 no || true
+    /usr/bin/resolvectl domain wlan0 '~.' || true
+    /usr/bin/resolvectl default-route wlan0 yes || true
+  fi
+fi
+
+/usr/bin/resolvectl flush-caches || true
